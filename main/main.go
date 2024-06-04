@@ -130,7 +130,7 @@ func format(words []string, spaces []rune) ([]string, []rune) {
 				switch piscine.ToLower(words[wordIdx][start : end+1]) {
 				case "bin":
 					num, err := piscine.AtoiBase(words[wordIdx-wordProcessIdx-1], BIN_BASE)
-					if err == nil {
+					if err == nil && piscine.IsNumericBin(words[wordIdx-wordProcessIdx-1]) {
 						words[wordIdx-wordProcessIdx-1] = piscine.Itoa(num)
 					}
 
@@ -140,7 +140,7 @@ func format(words []string, spaces []rune) ([]string, []rune) {
 
 				case "hex":
 					num, err := piscine.AtoiBase(piscine.ToUpper(words[wordIdx-wordProcessIdx-1]), HEX_BASE)
-					if err == nil {
+					if err == nil && piscine.IsNumericHex(words[wordIdx-wordProcessIdx-1]) {
 						words[wordIdx-wordProcessIdx-1] = piscine.Itoa(num)
 					}
 
@@ -182,17 +182,22 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 	anChars := []rune{'A', 'E', 'H', 'I', 'O', 'U', 'a', 'e', 'h', 'i', 'o', 'u'}
 	punctuation := []rune{'.', '!', '?', ',', ':', ';'}
 
+	skipFirstChar := false
 	isInsideSQuotes, isInsideDQuotes := false, false
 
 	// First, autocorrecting...
 	for wordIdx := 0; wordIdx < len(words); wordIdx++ { // For each word...
-
+		charIdx := 0
+		if skipFirstChar {
+			charIdx++
+			skipFirstChar = false
+		}
 		fmt.Println("Autocorrecting", words[wordIdx], "...")
 
 		if len(words[wordIdx]) == 1 || piscine.ToLower(words[wordIdx]) == "an" {
 			switch words[wordIdx] { // One switch for all trivial cases
 			case "a", "A":
-				for charIdx := 0; charIdx < len(words[wordIdx+1]); charIdx++ { // "a" or "A" detected. Is it appropriate according to next word?
+				for charIdx = 0; charIdx < len(words[wordIdx+1]); charIdx++ { // "a" or "A" detected. Is it appropriate according to next word?
 					char := words[wordIdx+1][charIdx]
 					if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') { // Is first *letter* of next word a vowel OR an "h"?
 						if indexOf(anChars, rune(char)) != -1 {
@@ -202,9 +207,10 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 						}
 					}
 				}
+				charIdx = 0
 
 			case "an", "An", "aN", "AN":
-				for charIdx := 0; charIdx < len(words[wordIdx+1]); charIdx++ { // "an" or "An" or "aN" or "AN" detected. Is it appropriate according to next word?
+				for charIdx = 0; charIdx < len(words[wordIdx+1]); charIdx++ { // "an" or "An" or "aN" or "AN" detected. Is it appropriate according to next word?
 					char := words[wordIdx+1][charIdx]
 					if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') { // Is first *letter* of next word NOT a vowel AND NOT an "h"?
 						if indexOf(anChars, rune(char)) == -1 {
@@ -214,6 +220,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 						}
 					}
 				}
+				charIdx = 0
 
 			case "(", "[", "{":
 				words[wordIdx+1] = words[wordIdx] + words[wordIdx+1] // Current word duplicated at start of next word
@@ -238,6 +245,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 						words[wordIdx+1] = words[wordIdx] + words[wordIdx+1] // Current word duplicated at start of next word
 						words = removeAt(words, wordIdx)                     // Current word is deleted
 						spaces = removeAt(spaces, wordIdx)                   // Space AFTER current word is removed.
+						skipFirstChar = true
 					}
 					isInsideDQuotes = !isInsideDQuotes // Toggle boolean value, as state has changed
 				case "'":
@@ -249,6 +257,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 						words[wordIdx+1] = words[wordIdx] + words[wordIdx+1] // Current word duplicated at start of next word
 						words = removeAt(words, wordIdx)                     // Current word is deleted
 						spaces = removeAt(spaces, wordIdx)                   // Space AFTER current word is removed.
+						skipFirstChar = true
 					}
 					isInsideSQuotes = !isInsideSQuotes // Toggle boolean value, as state has changed
 				}
@@ -259,7 +268,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 					switch words[wordIdx] {
 					case ".":
 						prdCnt := 0
-						for ; prdCnt < 3 && words[wordIdx-1][len(words[wordIdx-1])-(prdCnt+1)] == '.'; prdCnt++ { // How many periods at end of previous word?
+						for ; prdCnt < 3 && prdCnt+1 < len(words[wordIdx-1]) && words[wordIdx-1][len(words[wordIdx-1])-(prdCnt+1)] == '.'; prdCnt++ { // How many periods at end of previous word?
 						}
 						if prdCnt < 3 {
 							words[wordIdx-1] = words[wordIdx-1] + words[wordIdx] // Current word duplicated at end of previous word
@@ -278,6 +287,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 							words[wordIdx-1] = words[wordIdx-1] + words[wordIdx] // Current word duplicated at end of previous word
 							words = removeAt(words, wordIdx)                     // Current word is deleted
 							spaces = removeAt(spaces, wordIdx-1)                 // Space BEFORE current word is removed.
+							wordIdx--
 						}
 					}
 				}
@@ -286,7 +296,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 		}
 
 		// Search for modifications inside word
-		for charIdx := 0; charIdx < len(words[wordIdx]); charIdx++ { // For each character of current word...
+		for ; charIdx < len(words[wordIdx]); charIdx++ { // For each character of current word...
 
 			switch words[wordIdx][charIdx] {
 			case '(', '[', '{':
@@ -307,7 +317,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 						switch words[wordIdx][charIdx] {
 						case '.':
 							prdCnt := 0
-							for ; prdCnt < 3 && words[wordIdx-1][len(words[wordIdx-1])-(prdCnt+1)] == '.'; prdCnt++ { // How many periods at end of previous word?
+							for ; prdCnt < 3 && prdCnt+1 < len(words[wordIdx-1]) && words[wordIdx-1][len(words[wordIdx-1])-(prdCnt+1)] == '.'; prdCnt++ { // How many periods at end of previous word?
 							}
 							if prdCnt < 3 {
 								words[wordIdx-1] = words[wordIdx-1] + words[wordIdx][:charIdx+1] // Current character duplicated at end of previous word
@@ -332,7 +342,7 @@ func autocorrect(words []string, spaces []rune) ([]string, []rune) {
 								spaces = insertAt(spaces, ' ', wordIdx)
 								words[wordIdx] = words[wordIdx][charIdx+1:]
 							default:
-								words[wordIdx-1] = words[wordIdx-1] + words[wordIdx][:charIdx]
+								words[wordIdx-1] = words[wordIdx-1] + words[wordIdx][:charIdx+1]
 								words[wordIdx] = words[wordIdx][charIdx+1:]
 							}
 						}

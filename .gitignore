@@ -1,3 +1,4 @@
 .vscode/
-Tests/
+bin/
+test_files/
 *.exe

@@ -5,7 +5,9 @@ A project made during studies : a program manipulating words and correcting gram
 In short, this program takes a text file as input, and outputs another text file, with all the necessary corrections applied to the inputted text.
 
 For instance, an incorrect text such as `Then he said" Why the long face ? " ,so I said " Why the small D ? " . ` will be corrected to `Then he said "Why the long face?", so I said "Why the small D?".`.
+
 ---
+
 This program also supports the use of word manipulation tags, inside brackets.
 
 Available tags include:
